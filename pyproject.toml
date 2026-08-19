@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "eng-ia"
+version = "0.1.0"
+description = "Projeto mínimo Python"
+requires-python = ">=3.13"
+dependencies = [
+    "langchain",
+    "langchainhub",
+    "langchain_nvidia_ai_endpoints",
+    "langchain_community",
+    "mypy_extensions",
+    "wikipedia",
+    "arxiv",
+]
+
+[project.scripts]
+eng-ia = "eng_ia.__main__:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

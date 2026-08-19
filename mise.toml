@@ -1,0 +1,22 @@
+# eng-ia — ative com `mise trust` na raiz do repo.
+
+[tools]
+python = "3.13"
+
+[env]
+_.python.venv = { path = ".venv", create = true }
+
+# Avaliable Models:
+#   - meta/llama-3.1-8b-instruct
+#   - nvidia/llama-3.3-nemotron-super-49b-v1.5
+#   - meta/muse-glimmer-30b
+AGENT_MODEL="meta/muse-glimmer-30b" 
+
+
+[tasks.install]
+description = "Instala o projeto em modo editável no venv"
+run = "python -m pip install -e ."
+
+[tasks.run]
+description = "Executa o pacote"
+run = "python -m eng_ia"
