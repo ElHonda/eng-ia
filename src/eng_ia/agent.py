@@ -1,33 +1,36 @@
 from langchain.agents import create_agent
 from langchain.agents.middleware import ModelCallLimitMiddleware
-from langchain_nvidia_ai_endpoints import ChatNVIDIA
 
+from eng_ia.llm import criar_llm
 from eng_ia.raciocinio import acompanhar, imprimir_resposta
 from eng_ia.schemas import RespostaAgente
 from eng_ia.tools import build_tools
-import os
 
 
 MAX_INTERACTIONS = 20
-nome_modelo = os.getenv("AGENT_MODEL")
 
-llm = ChatNVIDIA(
-    model=nome_modelo,
-    temperature=0.6,
-)
+llm = criar_llm(temperature=0.6)
 nome_modelo = llm.model
-
-modelo = llm._client.model
-if modelo and modelo.supports_thinking:
-    llm = llm.with_thinking_mode(enabled=True)
 
 system_prompt = (
     "Você é um assistente que responde em português brasileiro (pt-BR). "
-    "Use arxiv e wikipedia. Chame só uma ferramenta por vez: primeiro arxiv "
-    "ou wikipedia, espere o resultado, e só então preencha RespostaAgente. "
-    "Mantenha titulo e autores como na fonte (não traduza nomes próprios). "
-    "Escreva o resumo em português brasileiro, fiel ao conteúdo da ferramenta, "
-    "sem placeholders. Não invente campos vazios quando a ferramenta já "
+    "Use arxiv e wikipedia para artigos, fatos e páginas. "
+    "Use contar_historias_espaco quando o usuário quiser uma história narrada "
+    "por um astronauta. "
+    "Use buscar_imagens quando o usuário quiser uma foto ou imagem "
+    "(a ferramenta devolve um URL). "
+    "Chame só uma ferramenta por vez: primeiro a ferramenta, espere o resultado, "
+    "e só então preencha RespostaAgente. "
+    "Depois da ferramenta, preencha RespostaAgente na hora. Não explique o schema "
+    "nem planeje os campos em texto. "
+    "Com arxiv/wikipedia: mantenha titulo e autores como na fonte (não traduza "
+    "nomes próprios) e escreva o resumo fiel ao conteúdo da ferramenta. "
+    "Com contar_historias_espaco: titulo é um título curto da história, autores "
+    "pode ser o narrador astronauta, resumo é a história, fontes inclui "
+    "contar_historias_espaco. "
+    "Com buscar_imagens: titulo descreve a imagem, resumo cita o que foi "
+    "buscado, fontes inclui o URL retornado. "
+    "Sem placeholders. Não invente campos vazios quando a ferramenta já "
     "trouxe os dados."
 )
 

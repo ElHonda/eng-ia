@@ -10,7 +10,14 @@ _.python.venv = { path = ".venv", create = true }
 #   - meta/llama-3.1-8b-instruct
 #   - nvidia/llama-3.3-nemotron-super-49b-v1.5
 #   - meta/muse-glimmer-30b
-AGENT_MODEL="meta/muse-glimmer-30b" 
+AGENT_MODEL="meta/muse-glimmer-30b"
+
+# Timeout da inferência NVIDIA, em segundos (o SDK usa 60 por padrão).
+NVIDIA_TIMEOUT = "180"
+
+# NVIDIA_API_KEY já vem do ambiente. SerpApi (busca de imagens) é outra chave:
+# em mise.local.toml (já no .gitignore):
+#   SERPAPI_API_KEY = "..." 
 
 
 [tasks.install]
