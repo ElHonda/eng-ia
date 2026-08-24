@@ -2,6 +2,18 @@ from langchain_core.messages import AIMessage, BaseMessage, ToolMessage
 
 from eng_ia.schemas import RespostaAgente
 
+_HISTORIA = "contar_historias_espaco"
+_IMAGEM = "buscar_imagens"
+_PLANEJAMENTO = (
+    "RespostaAgente",
+    "We need to produce",
+    "We need to fill",
+    "We need to respond",
+    "Make RespostaAgente",
+    "structured_response",
+    "titulo, autores, resumo",
+)
+
 
 def _texto(conteudo: object) -> str:
     if isinstance(conteudo, str):
@@ -16,6 +28,10 @@ def _action_input(tool_call: dict) -> str:
     if args:
         return str(args)
     return ""
+
+
+def _eh_planejamento(texto: str) -> bool:
+    return any(marca in texto for marca in _PLANEJAMENTO)
 
 
 def _thought_do_modelo(mensagem: AIMessage) -> str:
@@ -46,7 +62,7 @@ def _thought_do_modelo(mensagem: AIMessage) -> str:
 
 def _imprimir_thought_e_actions(mensagem: AIMessage) -> None:
     thought = _thought_do_modelo(mensagem)
-    if thought:
+    if thought and not _eh_planejamento(thought):
         print(f"Thought: {thought}")
 
     for tool_call in mensagem.tool_calls or []:
@@ -60,7 +76,14 @@ def _imprimir_thought_e_actions(mensagem: AIMessage) -> None:
 def _imprimir_observation(mensagem: ToolMessage) -> None:
     if mensagem.name == "RespostaAgente":
         return
-    print(_texto(mensagem.content).rstrip())
+    texto = _texto(mensagem.content).rstrip()
+    if mensagem.name == _HISTORIA:
+        print("História:")
+        print()
+        print(texto)
+        print()
+        return
+    print(texto)
     print()
 
 
@@ -99,29 +122,79 @@ def acompanhar(agent, pergunta: str, config: dict | None = None) -> dict:
     return estado_final
 
 
+def _observacao(estado: dict, nome: str) -> str | None:
+    for mensagem in reversed(estado.get("messages") or []):
+        if isinstance(mensagem, ToolMessage) and mensagem.name == nome:
+            texto = _texto(mensagem.content).strip()
+            if texto:
+                return texto
+    return None
+
+
+def _imprimir_bloco_final(titulo: str, corpo: str, fontes: list[str] | None = None) -> None:
+    print("Final Answer:")
+    print()
+    print("=" * 80)
+    print(titulo)
+    print()
+    print(corpo.rstrip())
+    if fontes:
+        print()
+        print("Fonte: " + ", ".join(fontes))
+    print()
+    print("=" * 80)
+    print("> Finished chain.")
+
+
+def _imprimir_resposta_agente(resultado: RespostaAgente) -> None:
+    fontes = " ".join(resultado.fontes).lower()
+    if _HISTORIA in fontes:
+        _imprimir_bloco_final(resultado.titulo, resultado.resumo, resultado.fontes)
+        return
+    if _IMAGEM in fontes or any(fonte.startswith("http") for fonte in resultado.fontes):
+        _imprimir_bloco_final(resultado.titulo, resultado.resumo, resultado.fontes)
+        return
+
+    print("Final Answer:")
+    print()
+    print(f"Título: {resultado.titulo}")
+    if resultado.autores:
+        print(f"Autores: {', '.join(resultado.autores)}")
+    print()
+    print(resultado.resumo.rstrip())
+    print()
+    print("Fontes: " + ", ".join(resultado.fontes))
+    print()
+    print("> Finished chain.")
+
+
 def imprimir_resposta(estado: dict) -> None:
     resultado = estado.get("structured_response")
     if isinstance(resultado, RespostaAgente):
-        print(f"Final Answer: {resultado.resumo}")
-        print()
-        print("> Finished chain.")
-        print("Resposta final:")
-        print(resultado.model_dump_json(indent=2, ensure_ascii=False))
+        _imprimir_resposta_agente(resultado)
+        return
+
+    historia = _observacao(estado, _HISTORIA)
+    if historia:
+        _imprimir_bloco_final("História do astronauta", historia, [_HISTORIA])
+        return
+
+    imagem = _observacao(estado, _IMAGEM)
+    if imagem:
+        _imprimir_bloco_final("Imagem", imagem, [_IMAGEM])
         return
 
     for mensagem in reversed(estado.get("messages") or []):
-        if isinstance(mensagem, AIMessage):
-            texto = _thought_do_modelo(mensagem)
-            visivel = _texto(mensagem.content).strip()
-            if "</think>" in visivel:
-                visivel = visivel.split("</think>", 1)[-1].strip()
-            final = visivel or texto
-            if final and not mensagem.tool_calls:
-                print(f"Final Answer: {final}")
-                print()
-                print("> Finished chain.")
-                print(f"Resposta final: {final}")
-                return
+        if not isinstance(mensagem, AIMessage) or mensagem.tool_calls:
+            continue
+        visivel = _texto(mensagem.content).strip()
+        if "</think>" in visivel:
+            visivel = visivel.split("</think>", 1)[-1].strip()
+        if visivel and not _eh_planejamento(visivel):
+            print(f"Final Answer: {visivel}")
+            print()
+            print("> Finished chain.")
+            return
 
     print("> Finished chain.")
     print("Resposta final: não foi possível montar a resposta estruturada.")
